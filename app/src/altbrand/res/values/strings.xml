@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="default_server">nang.zom.im</string>
+    <string name="default_server">user.uphi.co.za</string>
     <!-- General: Names -->
-    <string name="ic_launcher_name">Zom</string>
-    <string name="app_name">Zom</string>
-    <string name="im_label">Zom</string>
+    <string name="ic_launcher_name">Safespace</string>
+    <string name="app_name">SafeSpace</string>
+    <string name="im_label">SafeSpace</string>
 
-    <string name="upgrade_message">Thank you for using Zom! Our next major upgrade (Zom 2.0!) is here. It increases reliability and provides instant notifications through use of the robust new Matrix.org protocol.
-        However, you must sign up for a new account and add your friends and groups again. Sorry for the inconvenience. Please send us your thoughts about the new Zom through https://zom.im/ or email support at zom.im.
+    <string name="upgrade_message">Thank you for using SafeSpace! Our next major upgrade (SafeSpace 2.0!) is here. It increases reliability and provides instant notifications through use of the robust new Matrix.org protocol.
+        However, you must sign up for a new account and add your friends and groups again. Sorry for the inconvenience. Please send us your thoughts about the new SafeSpace through https://zom.im/ or email support at zom.im.
     \n\n
     If you still want to access your old account and contacts, you can do so for 30 days. You may login to your existing home.zom.im XMPP account using the following apps: Conversations (Android) or ChatSecure
     (iOS).

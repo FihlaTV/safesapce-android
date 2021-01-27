@@ -1,13 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="app_name_zom">Zom</string> 
+  <string name="app_name_zom">SafeSpace</string>
   <string name="create_an_account">Create an Account</string>
-  <string name="create_id">Create a Zom ID</string>
+  <string name="create_id">Create a SafeSpace ID</string>
   <string name="advanced">Advanced</string>
-  <string name="account_congrats">Congratulations, you are ready to Zom!</string>
+  <string name="account_congrats">Congratulations, you are ready to SafeSpace!</string>
   <string name="account_congrats_details">You can find your password and account details on your profile page.</string>
   <string name="invite_friends">Add Friends!</string>
-  <string name="invite_sms">SMS</string> 
+  <string name="invite_sms">SMS</string>
   <string name="invite_share">Share</string>
   <string name="invite_scan_qr">Scan</string>
   <string name="sign_in_message">Sign into an existing account</string>
@@ -15,7 +15,7 @@
   <string name="friends">Friends</string>
   <string name="add_friends">Add Friends</string>
   <string name="search_by_id">Search by ID</string>
-  <string name="invite_accepted">You are now friends on Zom</string>
+  <string name="invite_accepted">You are now friends on SafeSpace</string>
   <string name="chats">Chats</string>
   <string name="choose_friend">Choose a Friend</string>
   <string name="send_message">Send a message</string>
@@ -35,9 +35,9 @@
   <string name="add_account_action">Add Account</string>
   <string name="choose_photos">Choose from Photos</string>
   <string name="choose_language">Switch Language</string>
-  <string name="welcome_to_zom">WELCOME TO ZOM</string>
+  <string name="welcome_to_zom">WELCOME TO SafeSpace</string>
   <string name="onboarding_generate">(this is how people will find you).</string>
-  <string name="grant_perms">You must grant permission for Zom to use the camera</string>
+  <string name="grant_perms">You must grant permission for SafeSpace to use the camera</string>
 
   <string name="menu_refresh">Refresh Session</string>
 
@@ -72,7 +72,7 @@
   <string name="menu_approve_friend">Approve Friend?</string>
 
   <string name="header_got_invited">GOT INVITED?</string>
-  <string name="action_tap_invite">Tap the Zom invite link from your friend or scan their QR code now</string>
+  <string name="action_tap_invite">Tap the SafeSpace invite link from your friend or scan their QR code now</string>
 
   <string name="action_invite_new_friends">Send an invite link to your friends via SMS or SHARE through any app</string>
 
@@ -82,18 +82,18 @@
 
   <string name="reset_passphrase">Reset Lock</string>
 
-  <string name="action_services">Zom Services</string>
+  <string name="action_services">SafeSpace Services</string>
 
   <string name="migrate_menu">Migrate Account</string>
-  <string name="migrate_message">"I’ve upgraded my account. Zom me at </string>
+  <string name="migrate_message">"I’ve upgraded my account. SafeSpace me at </string>
 
   <string name="migrate_notification">Your account is expiring soon. Open the app to upgrade.</string>
 
     <string name="action_undo">Undo</string>
 
-    <string name="message_upgrade">We need to upgrade your Zom account to a new server. We can automatically upgrade you to provide the best performance.</string>
+    <string name="message_upgrade">We need to upgrade your SafeSpace account to a new server. We can automatically upgrade you to provide the best performance.</string>
 
-    <string name="message_upgrade_more">We need to upgrade your Zom account to a new server. We can automatically upgrade you to provide the best performance. If you are an advanced user, you can also choose your own server.</string>
+    <string name="message_upgrade_more">We need to upgrade your SafeSpace account to a new server. We can automatically upgrade you to provide the best performance. If you are an advanced user, you can also choose your own server.</string>
 
     <string name="upgrade_desc">We\'re making improvements around here.\nGet your free upgrade!</string>
 
@@ -117,10 +117,10 @@
 <string name="message_waiting_for_friend">Waiting for your friend</string>
 
 
-  <string name="message_archive">Some of your Zom friends are upgrading their accounts. Expired accounts will be stored here.</string>
+  <string name="message_archive">Some of your SafeSpace friends are upgrading their accounts. Expired accounts will be stored here.</string>
 
 
-  <string name="one_moment_please_privacy">One moment please! We’re preparing your private Zom.</string>
+  <string name="one_moment_please_privacy">One moment please! We’re preparing your private SafeSpace.</string>
 
 
 
@@ -179,8 +179,8 @@
 
   <string name="mtm_notification">Certificate Verification</string>
 
-  <string name="bot_zomkyi_name">Zomkyi</string>
-  <string name="bot_zomkyi_desc">Ask me about Zom</string>
+  <string name="bot_zomkyi_name">SafeSpacekyi</string>
+  <string name="bot_zomkyi_desc">Ask me about SafeSpace</string>
 
   <string name="bot_quiz_name">Agu Denpa</string>
   <string name="bot_quiz_desc">Take my quiz</string>
@@ -189,7 +189,7 @@
 
 
   <string name="stickers_pema">Pema</string>
-    <string name="stickers_zomkyi">Zomkyi</string>
+    <string name="stickers_zomkyi">SafeSpacekyi</string>
     <string name="stickers_topgyal">Topgyal</string>
     <string name="stickers_sindu">Sindu</string>
     <string name="stickers_losar">Losar</string>
@@ -207,7 +207,7 @@
   <string name="make_group_admin">Make group admin</string>
   <string name="view_profile">View profile</string>
   <string name="kickout">Kickout</string>
-  <string name="find_your_friend">Find your friend on Zom</string>
+  <string name="find_your_friend">Find your friend on SafeSpace</string>
   <string name="hint_add_friend" translatable="false"><font size="12">@zomkyi12:home.zom.im</font></string>
   <string name="enter_your_friends_account">Enter your friend\'s short username or full address. Your\'s is</string>
   <string name="send_your_invite_link">Send your invite link</string>
