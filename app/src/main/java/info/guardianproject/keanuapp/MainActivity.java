@@ -478,6 +478,8 @@ public class MainActivity extends BaseActivity {
 
         PopupAlertManager.INSTANCE.onNewActivityDisplayed(this);
 
+        checkForUpdates();
+
     }
 
     private Snackbar mSbStatus;
@@ -1179,39 +1181,41 @@ public class MainActivity extends BaseActivity {
 
     private void checkForUpdates() {
         // Remove this for store builds!
-     //   UpdateManager.register(this, ImApp.HOCKEY_APP_ID);
 
-        //only check github for updates if there is no Google Play
-        if (!hasGooglePlay()) {
-            try {
+        try {
 
-                String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
 
-                //if this is a full release, without -beta -rc etc, then check the appupdater!
-                if (version.indexOf("-") == -1) {
 
-                    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-                    long timeNow = new Date().getTime();
-                    long timeSinceLastCheck = prefs.getLong("updatetime", -1);
+            //if this is a full release, without -beta -rc etc, then check the appupdater!
+            if (version.indexOf("-") == -1 && (!TextUtils.isEmpty(ImApp.URL_UPDATER))) {
 
-                    //only check for updates once per day
-                    if (timeSinceLastCheck == -1 || (timeNow - timeSinceLastCheck) > 86400) {
+                SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+                long timeNow = new Date().getTime();
+                long timeSinceLastCheck = prefs.getLong("updatetime", -1);
 
-                        AppUpdater appUpdater = new AppUpdater(this);
-                        appUpdater.setDisplay(Display.DIALOG);
+                //only check for updates once per day
+                if (timeSinceLastCheck == -1 || (timeNow - timeSinceLastCheck) > 86400) {
+
+                    AppUpdater appUpdater = new AppUpdater(this);
+                    appUpdater.setDisplay(Display.SNACKBAR);
+
+                    if (hasGooglePlay())
+                        appUpdater.setUpdateFrom(UpdateFrom.GOOGLE_PLAY);
+                    else {
                         appUpdater.setUpdateFrom(UpdateFrom.XML);
                         appUpdater.setUpdateXML(ImApp.URL_UPDATER);
-
-                        //  appUpdater.showAppUpdated(true);
-                        appUpdater.start();
-
-                        prefs.edit().putLong("updatetime", timeNow).commit();
                     }
+
+                    appUpdater.start();
+
+                    prefs.edit().putLong("updatetime", timeNow).commit();
                 }
-            } catch (Exception e) {
-                Log.d("AppUpdater", "error checking app updates", e);
             }
+        } catch (Exception e) {
+            Log.d("AppUpdater", "error checking app updates", e);
         }
+
     }
 
     boolean hasGooglePlay() {

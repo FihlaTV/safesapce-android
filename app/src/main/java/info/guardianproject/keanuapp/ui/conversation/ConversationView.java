@@ -122,6 +122,10 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import info.guardianproject.iocipher.FileInputStream;
 import info.guardianproject.keanu.core.Preferences;
@@ -1039,30 +1043,48 @@ public class ConversationView {
 
     private boolean mLastIsTyping = false;
 
-    private void sendTypingStatus (boolean isTyping) {
+    private void sendTypingStatus (final boolean isTyping) {
 
-      if (mLastIsTyping != isTyping) {
-            try {
-                if (mConn != null)
-                    mConn.sendTypingStatus(mRemoteAddress, isTyping);
-            } catch (Exception ie) {
-                Log.e(LOG_TAG, "error sending typing status", ie);
+        new AsyncTask<Void,Void,Void>()
+        {
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+                if (mLastIsTyping != isTyping) {
+                    try {
+                        if (mConn != null)
+                            mConn.sendTypingStatus(mRemoteAddress, isTyping);
+                    } catch (Exception ie) {
+                        Log.e(LOG_TAG, "error sending typing status", ie);
+                    }
+
+                    mLastIsTyping = isTyping;
+                }
+                return null;
             }
+        }.execute();
 
-            mLastIsTyping = isTyping;
-        }
+
 
     }
 
-    private void sendMessageRead (String msgId) {
+    private void sendMessageRead (final String msgId) {
 
+        new AsyncTask<Void,Void,Void>()
+        {
 
-        try {
-            if (mConn != null)
-                mConn.sendMessageRead(mRemoteAddress, msgId);
-        } catch (Exception ie) {
-            Log.e(LOG_TAG, "error sending typing status", ie);
-        }
+            @Override
+            protected Void doInBackground(Void... voids) {
+                try {
+                    if (mConn != null)
+                        mConn.sendMessageRead(mRemoteAddress, msgId);
+                } catch (Exception ie) {
+                    Log.e(LOG_TAG, "error sending typing status", ie);
+                }
+                return null;
+            }
+        }.execute();
+
 
 
     }
@@ -1497,6 +1519,16 @@ public class ConversationView {
         mCurrentChatSession = getChatSession();
         if (mCurrentChatSession == null)
             createChatSession();
+        else
+        {
+            try {
+                mCurrentChatSession.refreshContactFromServer();
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+
+
     }
 
 
@@ -1536,7 +1568,7 @@ public class ConversationView {
     }
 
     protected Uri mUri;
-    private LoaderManager mLoaderManager;
+    private LoaderManager mLoaderManager, mReplyLoaderManager;
     protected int loaderId = 100001;
 
     // This will map a message id to a loader for replies to that id
@@ -1546,10 +1578,10 @@ public class ConversationView {
 
         mUri = Imps.Messages.getContentUriByThreadId(chatId);
 
-        mLoaderManager = mActivity.getSupportLoaderManager();
-
-        if (mLoaderManager == null)
+        if (mLoaderManager == null) {
+            mLoaderManager = LoaderManager.getInstance(mActivity);
             mLoaderManager.initLoader(loaderId++, null, new MyLoaderCallbacks());
+        }
         else
             mLoaderManager.restartLoader(loaderId++, null, new MyLoaderCallbacks());
 
@@ -1613,79 +1645,6 @@ public class ConversationView {
         }
     }
 
-    class MessageRepliesLoaderCallbacks implements LoaderManager.LoaderCallbacks<Cursor> {
-
-        private Context context;
-        private String messageId;
-        private MessageViewHolder messageViewHolder;
-
-        public final String[] MESSAGE_PROJECTION = {
-                Imps.Messages._ID,
-                Imps.Messages.NICKNAME,
-                Imps.Messages.BODY,
-                Imps.Messages.TYPE,
-                Imps.Messages.IS_DELIVERED,
-                Imps.Messages.MIME_TYPE,
-                Imps.Messages.THREAD_ID,
-                Imps.Messages.REPLY_ID,
-                Imps.Messages.DATE,
-                Imps.Messages.PACKET_ID
-        };
-
-        public MessageRepliesLoaderCallbacks (Context context, MessageViewHolder messageViewHolder, String messageId)
-        {
-            super();
-            this.context = context;
-            this.messageViewHolder = messageViewHolder;
-            this.messageId = messageId;
-        }
-
-        @Override
-        public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-            StringBuilder buf = new StringBuilder();
-            buf.append(Imps.Messages.REPLY_ID).append("=").append("\"").append(messageId).append("\"");
-            CursorLoader loader = new CursorLoader(context, mUri, MESSAGE_PROJECTION, buf.toString(), null, Imps.Messages.REVERSE_SORT_ORDER);
-            return loader;
-        }
-
-        @Override
-        public void onLoadFinished(Loader<Cursor> loader, Cursor newCursor) {
-
-            if (newCursor == null)
-                return; // the app was quit or something while this was working
-
-            int nicknameCol = newCursor.getColumnIndexOrThrow(Imps.Messages.NICKNAME);
-            int bodyCol = newCursor.getColumnIndexOrThrow(Imps.Messages.BODY);
-
-            Map<String, QuickReaction> map = new HashMap<>();
-
-            while (newCursor.moveToNext())
-            {
-                String reaction = newCursor.getString(bodyCol);
-                String address = newCursor.getString(nicknameCol);
-
-                if (!TextUtils.isEmpty(address) && reaction != null && EmojiUtils.isOnlyEmojis(reaction)) {
-                    QuickReaction react = map.get(reaction);
-                    if (react == null) {
-                        react = new QuickReaction(reaction, null);
-                        map.put(reaction, react);
-                    }
-                    react.senders.add(address);
-                    if (address.equals(((ImApp) ((Activity) context).getApplication()).getDefaultUsername())) {
-                        react.sentByMe = true;
-                    }
-                }
-            }
-
-            messageViewHolder.setReactions(new ArrayList<>(map.values()));
-            newCursor.setNotificationUri(context.getContentResolver(), mUri);
-        }
-
-        @Override
-        public void onLoaderReset(Loader<Cursor> loader) {
-
-        }
-    }
 
     void scheduleRequery(long interval) {
 
@@ -1947,7 +1906,6 @@ public class ConversationView {
         if (!TextUtils.isEmpty(msg))
             sendMessageAsync(msg, replyId);
 
-        sendTypingStatus (false);
 
     }
 
@@ -1991,6 +1949,24 @@ public class ConversationView {
         Imps.deleteMessageInDb(mContext.getContentResolver(), packetId);
 
         requeryCursor();
+    }
+
+    void refreshMessage (final String packetId) {
+
+        try {
+            mCurrentChatSession.refreshMessage(packetId);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    void checkReceipt (final String packetId) {
+
+        try {
+            mCurrentChatSession.checkReceipt(packetId);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
     void resendMessage (final String resendMsg, final String mimeType) {
@@ -2041,6 +2017,9 @@ public class ConversationView {
                     mComposeMessage.setText("");
                     mComposeMessage.requestFocus();
                 }
+
+
+                sendTypingStatus (false);
             }
         }.execute(msg);
 
@@ -2694,11 +2673,15 @@ public class ConversationView {
             view.setOnLongClickListener(new View.OnLongClickListener() {
                 // Called when the user long-clicks on someView
                 public boolean onLongClick(View view) {
+
+                    mLastSelectedView = view;
+
+                    if (((MessageListItem)mLastSelectedView).isNotDecrypted())
+                        refreshMessage(((MessageListItem)mLastSelectedView).getPacketId());
+
                     if (mActionMode != null) {
                         return false;
                     }
-
-                    mLastSelectedView = view;
 
                     // Start the CAB using the ActionMode.Callback defined above
                     mActionMode = ((Activity) mContext).startActionMode(mActionModeCallback);
@@ -2717,7 +2700,7 @@ public class ConversationView {
         }
 
         @Override
-        public void onBindViewHolder(MessageViewHolder viewHolder, Cursor cursor) {
+        public void onBindViewHolder(final MessageViewHolder viewHolder, Cursor cursor) {
 
             MessageListItem messageView = (MessageListItem) viewHolder.itemView;
             setLinkifyForMessageView(messageView);
@@ -2725,26 +2708,28 @@ public class ConversationView {
 
             int messageType = cursor.getInt(mTypeColumn);
 
-            String roomAddress = isGroupChat() ? cursor.getString(mNicknameColumn)  : mRemoteAddress;
-            String userAddress = isGroupChat() ? cursor.getString(mNicknameColumn) : mRemoteNickname;
+            final String roomAddress = isGroupChat() ? cursor.getString(mNicknameColumn)  : mRemoteAddress;
+            final String userAddress = isGroupChat() ? cursor.getString(mNicknameColumn) : mRemoteNickname;
 
             String nick = userToNick.get(userAddress);
             if (TextUtils.isEmpty(nick))
                 nick = userAddress;
 
-            String mimeType = cursor.getString(mMimeTypeColumn);
-            int id = cursor.getInt(mIdColumn);
-            String body = cursor.getString(mBodyColumn);
-            long delta = cursor.getLong(mDeltaColumn);
+            final String mimeType = cursor.getString(mMimeTypeColumn);
+            final int id = cursor.getInt(mIdColumn);
+            final String body = cursor.getString(mBodyColumn);
+            final long delta = cursor.getLong(mDeltaColumn);
             boolean showTimeStamp = true;//(delta > SHOW_TIME_STAMP_INTERVAL);
-            long timestamp = cursor.getLong(mDateColumn);
-            String packetId = cursor.getString(mPacketIdColumn);
-            String replyId = cursor.getString(mReplyIdColumn);
+            final long timestamp = cursor.getLong(mDateColumn);
+            final String packetId = cursor.getString(mPacketIdColumn);
+            final String replyId = cursor.getString(mReplyIdColumn);
 
-            Date date = showTimeStamp ? new Date(timestamp) : null;
-            boolean isDelivered = cursor.getLong(mDeliveredColumn) > 0;
-            long showDeliveryInterval = (mimeType == null) ? SHOW_DELIVERY_INTERVAL : SHOW_MEDIA_DELIVERY_INTERVAL;
-            boolean showDelivery = ((System.currentTimeMillis() - timestamp) > showDeliveryInterval);
+            final Date date = showTimeStamp ? new Date(timestamp) : null;
+            final boolean isDelivered = cursor.getLong(mDeliveredColumn) > 0;
+            final long showDeliveryInterval = (mimeType == null) ? SHOW_DELIVERY_INTERVAL : SHOW_MEDIA_DELIVERY_INTERVAL;
+            final boolean showDelivery = ((System.currentTimeMillis() - timestamp) > showDeliveryInterval);
+
+            viewHolder.mPacketId = packetId;
 
             MessageListItem.DeliveryState deliveryState = MessageListItem.DeliveryState.NEUTRAL;
 
@@ -2758,73 +2743,48 @@ public class ConversationView {
 
             }
 
-
-
-            if (!mExpectingDelivery && isDelivered) {
-                mExpectingDelivery = true;
+            if (isDelivered  || (messageType ==Imps.MessageType.OUTGOING||messageType ==Imps.MessageType.OUTGOING_ENCRYPTED)) {
+                mExpectingDelivery = false;
+                viewHolder.progress.setVisibility(View.GONE);
+              //  viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.DISABLED);
+             //   viewHolder.mMediaThumbnail.setBlurRadius(0);
                // Log.v("ImageSend","isDelivered");
             } else if (cursor.getPosition() == cursor.getCount() - 1) {
                 //Log.v("ImageSend","isDelivered last");
-                if(messageType ==Imps.MessageType.OUTGOING){
+
+                if(messageType ==Imps.MessageType.QUEUED){
                     viewHolder.progress.setVisibility(View.VISIBLE);
-                    viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN5X5);
-                    viewHolder.mMediaThumbnail.setBlurRadius(10);
-                    viewHolder.progress.setProgress(3);
-                    viewHolder.progress.setProgress(6);
-                    viewHolder.progress.setProgress(7);
-                    //Log.v("ImageSend","isDelivered last 1");
-                }else if(messageType ==Imps.MessageType.QUEUED){
-                    viewHolder.progress.setVisibility(View.VISIBLE);
-                    viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN5X5);
-                    viewHolder.mMediaThumbnail.setBlurRadius(10);
+                //    viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN5X5);
+                 //   viewHolder.mMediaThumbnail.setBlurRadius(10);
                     viewHolder.progress.setProgress(3);
                     viewHolder.progress.setProgress(6);
                     viewHolder.progress.setProgress(7);
                    // Log.v("ImageSend","isDelivered last 2");
                 }else if(messageType == Imps.MessageType.SENDING){
                    viewHolder.progress.setVisibility(View.VISIBLE);
-                    viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN5X5);
-                    viewHolder.mMediaThumbnail.setBlurRadius(10);
+              //      viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN5X5);
+               //     viewHolder.mMediaThumbnail.setBlurRadius(10);
                     viewHolder.progress.setProgress(3);
                     viewHolder.progress.setProgress(6);
                     viewHolder.progress.setProgress(7);
                     //Log.v("ImageSend","isDelivered last 3");
-                }else {
+                }
+                else {
                     viewHolder.progress.setVisibility(View.VISIBLE);
                     viewHolder.progress.setProgress(8);
                     viewHolder.progress.setProgress(9);
                     viewHolder.progress.setProgress(10);
-                    new Handler().postDelayed(new Runnable() {
+                    mHandler.postDelayed(new Runnable() {
                         @Override
                         public void run() {
                             viewHolder.progress.setVisibility(View.GONE);
-                            viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN5X5);
-                            viewHolder.mMediaThumbnail.setBlurRadius(0);
+                      //      viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.DISABLED);
+                    //        viewHolder.mMediaThumbnail.setBlurRadius(0);
                         }
-                    },100);
+                    },500);
 
-
-                  /*  viewHolder.mMediaThumbnail.setPivBlurMode(PivBlurMode.GAUSSIAN);
-                    viewHolder.mMediaThumbnail.setBlurRadius(0);
-                    viewHolder.mMediaThumbnail.setPivBlurDownSamplingRate(0);*/
-                  // Log.v("ImageSend","isDelivered last 4");
                 }
 
-                /*
-                // if showTimeStamp is false for the latest message, then set a timer to query the
-                // cursor again in a minute, so we can update the last message timestamp if no new
-                // message is received
-                if (Log.isLoggable(ImApp.LOG_TAG, Log.DEBUG)) {
-                    log("delta = " + delta + ", showTs=" + showTimeStamp);
-                }
-                *//*
-                if (!showDelivery) {
-                    scheduleRequery(SHOW_DELIVERY_INTERVAL);
-                } else if (!showTimeStamp) {
-                    scheduleRequery(SHOW_TIME_STAMP_INTERVAL);
-                } else {
-                    cancelRequery();
-                }*/
             }
 
             MessageListItem.EncryptionState encState = MessageListItem.EncryptionState.NONE;
@@ -2842,7 +2802,13 @@ public class ConversationView {
 
             switch (messageType) {
             case Imps.MessageType.INCOMING:
+
                 messageView.bindIncomingMessage(viewHolder,id, messageType, roomAddress, nick, mimeType, body, date, mMarkup, false, encState, showContactName, mPresenceStatus, mCurrentChatSession, packetId, replyId);
+
+                if (messageView.isNotDecrypted())
+                    refreshMessage(messageView.getPacketId());
+
+
 
                 break;
 
@@ -2857,6 +2823,11 @@ public class ConversationView {
 
                     messageView.bindOutgoingMessage(viewHolder, id, messageType, null, mimeType, body, date, mMarkup, false,
                             deliveryState, encState, packetId);
+
+                    if (!messageView.isDelivered())
+                    {
+                        checkReceipt(messageView.getPacketId());
+                    }
                 }
 
                 break;
@@ -2880,33 +2851,88 @@ public class ConversationView {
                         return true;
                     });
                 });
-                contextMenuView.setOnClickListener(new View.OnClickListener() {
+                contextMenuView.setOnLongClickListener(new View.OnLongClickListener() {
                     @Override
-                    public void onClick(View v) {
+                    public boolean onLongClick(View v) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                             v.showContextMenu(v.getWidth() / 2.0f, v.getHeight() / 2.0f);
                         } else {
                             v.showContextMenu();
                         }
+                        return true;
                     }
+
+
                 });
             }
 
-            sendMessageRead(packetId);
-            loadMessageReplies(viewHolder, packetId);
+            if (!isDelivered)
+              sendMessageRead(packetId);
+
+            viewHolder.setReactions(packetId,null);
+
+            mReactionExec.execute(new Runnable() {
+                @Override
+                public void run() {
+                    loadMessageReactions(viewHolder, packetId);
+                }
+            });
+
+            if (messageView.isSelected())
+                viewHolder.mContainer.setBackgroundColor(mContext.getColor(R.color.holo_blue_bright));
+
         }
 
-        private void loadMessageReplies(MessageViewHolder messageViewHolder, String messageId) {
-            // Load all replies to the given event and populate view holder.
-            Integer loaderIdReplies = eventReplyLoaders.get(messageId);
-            if (loaderIdReplies == null || mLoaderManager.getLoader(loaderIdReplies) == null) {
-                loaderIdReplies = loaderId++;
-                eventReplyLoaders.put(messageId, loaderIdReplies);
-                mLoaderManager.initLoader(loaderIdReplies, null, new MessageRepliesLoaderCallbacks(messageViewHolder.itemView.getContext(), messageViewHolder, messageId));
-            } else {
-                // Already loading, refresh
-                mLoaderManager.restartLoader(loaderIdReplies, null, new MessageRepliesLoaderCallbacks(messageViewHolder.itemView.getContext(), messageViewHolder, messageId));
+        Executor mReactionExec = new ThreadPoolExecutor( 2, 4, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+
+        private void loadMessageReactions(MessageViewHolder messageViewHolder, String messageId) {
+
+            final String[] REACTION_PROJECTION = {
+                    Imps.Messages.NICKNAME,
+                    Imps.Messages.BODY,
+                    Imps.Messages.DATE
+            };
+
+            StringBuilder buf = new StringBuilder();
+            buf.append(Imps.Messages.REPLY_ID).append("=").append("\"").append(messageId).append("\"");
+            Cursor newCursor = mActivity.getContentResolver().query(mUri, REACTION_PROJECTION, buf.toString(), null, Imps.Messages.REVERSE_SORT_ORDER);
+
+            int nicknameCol = 0;
+            int bodyCol = 1;
+
+            final Map<String, QuickReaction> map = new HashMap<>();
+
+            while (newCursor.moveToNext())
+            {
+                String reaction = newCursor.getString(bodyCol);
+                String address = newCursor.getString(nicknameCol);
+                if (address == null) {
+                    address = ((ImApp) mActivity.getApplication()).getDefaultUsername();
+                }
+
+                if (!TextUtils.isEmpty(address) && reaction != null && EmojiUtils.isOnlyEmojis(reaction)) {
+                    QuickReaction react = map.get(reaction);
+                    if (react == null) {
+                        react = new QuickReaction(reaction, null);
+                        map.put(reaction, react);
+                    }
+                    react.senders.add(address);
+                    if (address.equals(((ImApp) mActivity.getApplication()).getDefaultUsername())) {
+                        react.sentByMe = true;
+                    }
+                }
             }
+
+            mHandler.post(new Runnable (){
+
+                public void run ()
+                {
+                    messageViewHolder.setReactions(messageId, new ArrayList<>(map.values()));
+
+                }
+            });
+
+            newCursor.close();
         }
 
         public void onScrollStateChanged(AbsListView viewNew, int scrollState) {
@@ -3017,11 +3043,10 @@ public class ConversationView {
             public void onDestroyActionMode(ActionMode mode) {
                 mActionMode = null;
 
-
                 if (mLastSelectedView != null)
                     mLastSelectedView.setSelected(false);
 
-
+                mLastSelectedView = null;
             }
         };
 
@@ -3400,6 +3425,7 @@ public class ConversationView {
                 return;
             }
             Context context = rootView.getContext();
+
             final EmojiEditText editText = new EmojiEditText(context);
             editText.setImeOptions(EditorInfo.IME_ACTION_SEND);
             editText.setInputType(InputType.TYPE_NULL);
@@ -3416,29 +3442,31 @@ public class ConversationView {
                 }
             });
             SingleEmojiTrait.install(editText);
-            ((ViewGroup)rootView).addView(editText, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-            emojiPopup = EmojiPopup.Builder.fromRootView(rootView)
-                    .setOnEmojiPopupDismissListener(new OnEmojiPopupDismissListener() {
-                        @Override
-                        public void onEmojiPopupDismiss() {
-                            emojiPopup = null;
-                            ((ViewGroup)rootView).removeView(editText);
-                        }
-                    })
-                    .setOnEmojiClickListener(new OnEmojiClickListener() {
-                        @Override
-                        public void onEmojiClick(@NonNull EmojiImageView emoji, @NonNull Emoji variant) {
-                            sendQuickReaction(variant.getUnicode(), messageId);
-                            emojiPopup.dismiss();
-                        }
-                    })
-                    .build(editText);
-            rootView.post(new Runnable() {
+
+            ((ViewGroup)rootView).addView(editText, ViewGroup.LayoutParams.MATCH_PARENT, 1);
+
+            rootView.postDelayed(new Runnable() {
                 @Override
                 public void run() {
+                    emojiPopup = EmojiPopup.Builder.fromRootView(rootView)
+                            .setOnEmojiPopupDismissListener(new OnEmojiPopupDismissListener() {
+                                @Override
+                                public void onEmojiPopupDismiss() {
+                                    emojiPopup = null;
+                                    ((ViewGroup)rootView).removeView(editText);
+                                }
+                            })
+                            .setOnEmojiClickListener(new OnEmojiClickListener() {
+                                @Override
+                                public void onEmojiClick(@NonNull EmojiImageView emoji, @NonNull Emoji variant) {
+                                    sendQuickReaction(variant.getUnicode(), messageId);
+                                    emojiPopup.dismiss();
+                                }
+                            })
+                            .build(editText);
                     emojiPopup.toggle();
                 }
-            });
+            },200);
         } catch (Exception e) {
             e.printStackTrace();
         }

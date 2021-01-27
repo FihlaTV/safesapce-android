@@ -56,8 +56,10 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.TextView;
 
+import org.apache.commons.io.IOUtils;
 import org.ocpsoft.prettytime.PrettyTime;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -79,6 +81,7 @@ import info.guardianproject.keanuapp.ui.BaseActivity;
 import info.guardianproject.keanuapp.ui.camera.CameraActivity;
 import info.guardianproject.keanuapp.ui.contacts.ContactsPickerActivity;
 import info.guardianproject.keanuapp.ui.stories.StoryEditorActivity;
+import info.guardianproject.keanuapp.ui.widgets.MediaInfo;
 import info.guardianproject.keanuapp.ui.widgets.ShareRequest;
 
 import static info.guardianproject.keanu.core.KeanuConstants.LOG_TAG;
@@ -314,8 +317,26 @@ public class ConversationDetailActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        processIntent(getIntent());
-        mConvoView.setSelected(true);
+
+        new AsyncTask<Void,Void,Void>() {
+
+            @Override
+            protected Void doInBackground(Void... voids) {
+                processIntent(getIntent());
+
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                super.onPostExecute(aVoid);
+
+                mConvoView.setSelected(true);
+
+            }
+        }.execute();
+
+
 
     }
 
@@ -450,9 +471,12 @@ public class ConversationDetailActivity extends BaseActivity {
             }
         }
         else {
+            Intent intent = new Intent(ConversationDetailActivity.this, AddUpdateMediaActivity.class);
+            intent.setType("image");
+            startActivityForResult(intent,REQUEST_ADD_MEDIA);
 
+            //startActivityForResult(getPickImageChooserIntent(), REQUEST_SEND_IMAGE);
 
-            startActivityForResult(getPickImageChooserIntent(), REQUEST_SEND_IMAGE);
 
         }
 
@@ -539,9 +563,15 @@ public class ConversationDetailActivity extends BaseActivity {
         }
         else {
 
+            Intent intent = new Intent(ConversationDetailActivity.this, AddUpdateMediaActivity.class);
+            startActivityForResult(intent,REQUEST_ADD_MEDIA);
+
+            /**
             Intent intent = new Intent(this, CameraActivity.class);
+
             intent.putExtra(CameraActivity.SETTING_ONE_AND_DONE,true);
             startActivityForResult(intent, ConversationDetailActivity.REQUEST_TAKE_PICTURE);
+             **/
 
             /**
            if (Preferences.useProofMode())
@@ -663,6 +693,7 @@ public class ConversationDetailActivity extends BaseActivity {
             protected Object doInBackground(Object[] objects) {
 
                 handleSendDeleteAsync(mConvoView.getChatSession(),contentUri,defaultType,delete,resizeImage,importContent);
+                sb.dismiss();
 
                 return null;
             }
@@ -713,7 +744,10 @@ public class ConversationDetailActivity extends BaseActivity {
                        if (bitmap != null){
                            String thumbPath = sendUri.getPath() + ".thumb.jpg";
                            info.guardianproject.iocipher.File fileThumb = new info.guardianproject.iocipher.File(thumbPath);
-                           bitmap.compress(Bitmap.CompressFormat.JPEG,100,new info.guardianproject.iocipher.FileOutputStream(fileThumb));
+                           ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                           bitmap.compress(Bitmap.CompressFormat.JPEG,100,baos);
+                           IOUtils.write(baos.toByteArray(),new info.guardianproject.iocipher.FileOutputStream(fileThumb));
+
                        }
                    }
 
@@ -742,7 +776,10 @@ public class ConversationDetailActivity extends BaseActivity {
                            if (bitmap != null) {
                                String thumbPath = sendUri.getPath() + ".thumb.jpg";
                                info.guardianproject.iocipher.File fileThumb = new info.guardianproject.iocipher.File(thumbPath);
-                               bitmap.compress(Bitmap.CompressFormat.JPEG, 100, new info.guardianproject.iocipher.FileOutputStream(fileThumb));
+                               ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                               bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
+                               IOUtils.write(baos.toByteArray(),new info.guardianproject.iocipher.FileOutputStream(fileThumb));
+
                            }
                        }
                    }
@@ -822,51 +859,61 @@ public class ConversationDetailActivity extends BaseActivity {
                 if (resultIntent == null)
                     return;
 
+                /**
                 Uri uri = resultIntent.getData() ;
 
                 if( uri == null ) {
                     return ;
-                }
+                }**/
 
+                String[] mediaUris = resultIntent.getStringArrayExtra("resultUris");
+                String[] mediaTypes = resultIntent.getStringArrayExtra("resultTypes");
 
-                ShareRequest request = new ShareRequest();
-                request.deleteFile = false;
-                request.resizeImage = true;
-                request.importContent = true;
-                request.media = uri;
-                request.mimeType = resultIntent.getType();
+                if (mediaUris == null || mediaUris.length == 0)
+                    return;
 
-                if (TextUtils.isEmpty(request.mimeType)) {
-                    // import
-                    //Log.v("ImageSend","ImageSend_2");
-                    SystemServices.FileInfo info = null;
-                    try {
-                        //Log.v("ImageSend","ImageSend_3");
-                        info = SystemServices.getFileInfoFromURI(this, request.media);
-                        request.mimeType = info.type;
-                        info.stream.close();
-                    } catch (Exception e) {
-
-                    }
-
-                }
-
-                if (request.mimeType.startsWith("image"))
+                for (int i = 0; i < mediaUris.length; i++)
                 {
-                    try {
-                        //Log.v("ImageSend","ImageSend_4");
-                        mConvoView.setMediaDraft(request);
+                    ShareRequest request = new ShareRequest();
+                    request.deleteFile = false;
+                    request.resizeImage = true;
+                    request.importContent = true;
+                    request.media = Uri.parse(mediaUris[i]);
+                    request.mimeType = mediaTypes[i];
+
+                    if (TextUtils.isEmpty(request.mimeType)) {
+                        // import
+                        //Log.v("ImageSend","ImageSend_2");
+                        SystemServices.FileInfo info = null;
+                        try {
+                            //Log.v("ImageSend","ImageSend_3");
+                            info = SystemServices.getFileInfoFromURI(this, request.media);
+                            request.mimeType = info.type;
+                            info.stream.close();
+                        } catch (Exception e) {
+
+                        }
+
                     }
-                    catch (Exception e){
-                        Log.w(LOG_TAG,"error setting media draft",e);
+
+                    /**
+                    if (request.mimeType.startsWith("image"))
+                    {
+                        try {
+                            //Log.v("ImageSend","ImageSend_4");
+                            mConvoView.setMediaDraft(request);
+                        }
+                        catch (Exception e){
+                            Log.w(LOG_TAG,"error setting media draft",e);
+                        }
                     }
-                }
-                else {
-                    boolean deleteFile = false;
-                    boolean resizeImage = false;
-                    boolean importContent = true; //let's import it!
-                    //Log.v("ImageSend","ImageSend_5");
-                    handleSendDelete(uri, request.mimeType, deleteFile, resizeImage, importContent);
+                    else {**/
+                        boolean deleteFile = false;
+                        boolean resizeImage = false;
+                        boolean importContent = true; //let's import it!
+                        //Log.v("ImageSend","ImageSend_5");
+                        handleSendDelete(request.media, request.mimeType, deleteFile, resizeImage, importContent);
+                    //}
                 }
 
 
@@ -889,25 +936,57 @@ public class ConversationDetailActivity extends BaseActivity {
                 boolean resizeImage = false;
                 boolean importContent = true; //let's import it!
                 //Log.v("ImageSend","ImageSend_send file");
-                handleSendDelete(uri, defaultType, deleteFile, resizeImage, importContent);
+
+                new AsyncTask<Void,Void,Void>()
+                {
+
+                    @Override
+                    protected Void doInBackground(Void... voids) {
+                        handleSendDelete(uri, defaultType, deleteFile, resizeImage, importContent);
+                        return null;
+                    }
+                }.execute();
+
             }
             else if (requestCode == REQUEST_ADD_MEDIA)
             {
                 String[] mediaUris = resultIntent.getStringArrayExtra("resultUris");
                 String[] mediaTypes = resultIntent.getStringArrayExtra("resultTypes");
 
-                for (int i = 0; i < mediaUris.length; i++)
-                {
-                    boolean deleteFile = false;
-                    boolean resizeImage = false;
-                    boolean importContent = true; //let's import it!
+                if (mediaUris != null) {
 
-                    if ((!TextUtils.isEmpty(mediaTypes[i]))
-                            && mediaTypes[i].startsWith("video"))
-                        importContent = false;
-                    //Log.v("ImageSend","REQUEST_ADD_MEDIA");
-                    handleSendDelete(Uri.parse(mediaUris[i]), mediaTypes[i], deleteFile, resizeImage, importContent);
+                    for (int i = 0; i < mediaUris.length; i++) {
+                        boolean deleteFile = false;
+                        boolean resizeImage = false;
+                        boolean importContent = true; //let's import it!
+
+                        if ((!TextUtils.isEmpty(mediaTypes[i]))
+                                && mediaTypes[i].startsWith("video"))
+                            importContent = false;
+                        //Log.v("ImageSend","REQUEST_ADD_MEDIA");
+                        handleSendDelete(Uri.parse(mediaUris[i]), mediaTypes[i], deleteFile, resizeImage, importContent);
+                    }
                 }
+                else {
+                    ArrayList<MediaInfo> list = (ArrayList<MediaInfo>) resultIntent.getSerializableExtra("listMediaInfo");
+
+                    if (list != null)
+                    {
+
+                        for (MediaInfo mInfo : list) {
+                            boolean deleteFile = false;
+                            boolean resizeImage = false;
+                            boolean importContent = true; //let's import it!
+
+                            if ((!TextUtils.isEmpty(mInfo.mimeType))
+                                    && mInfo.mimeType.startsWith("video"))
+                                importContent = false;
+                            //Log.v("ImageSend","REQUEST_ADD_MEDIA");
+                            handleSendDelete(mInfo.uri, mInfo.mimeType, deleteFile, resizeImage, importContent);
+                        }
+                    }
+                }
+
 
             }
             else if (requestCode == REQUEST_TAKE_PICTURE)
@@ -979,7 +1058,7 @@ public class ConversationDetailActivity extends BaseActivity {
             if (session != null) {
 
                 String offerId = UUID.randomUUID().toString();
-                return session.offerData(offerId, uri.toString(), mimeType );
+                return session.offerData(offerId, null, uri.toString(), mimeType );
             }
 
         } catch (RemoteException e) {

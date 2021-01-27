@@ -35,6 +35,8 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.apache.commons.codec.DecoderException;
+import org.bouncycastle.crypto.tls.TlsExtensionsUtils;
+
 import info.guardianproject.keanu.core.Preferences;
 import info.guardianproject.keanu.core.model.Contact;
 import info.guardianproject.keanu.core.model.ImErrorInfo;
@@ -127,9 +129,6 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
         mLastChatId = getIntent().getLongExtra("chat", -1);
         mSubject = getIntent().getStringExtra("subject");
 
-        if (!TextUtils.isEmpty(mSubject))
-            changeGroupSubject(mSubject);
-
         mHandler = new Handler();
         if (Debug.DEBUG_ENABLED) {
 
@@ -175,6 +174,8 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
         mYou.username = mLocalAddress;
         mYou.affiliation = "none";
         mYou.role = "none";
+
+        updateMembers();
 
     }
 
@@ -242,18 +243,23 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
                         @Override
                         public void onClick(View v) {
                             try {
+
                                 try {
                                     if (mSession != null) {
                                         mSession.setPublic(true);
                                     }
                                 } catch (Exception ignored) {
                                 }
-                                String publicAddress = URLEncoder.encode(mSession.getPublicAddress(), "UTF-8");
-                                String inviteLink = OnboardingManager.generateInviteLink(GroupDisplayActivity.this, publicAddress, "", mName);
 
-                                Intent intent = new Intent(GroupDisplayActivity.this, QrDisplayActivity.class);
-                                intent.putExtra(Intent.EXTRA_TEXT, inviteLink);
-                                startActivity(intent);
+
+                                String publicAddress = mSession.getPublicAddress();
+
+                                if (!TextUtils.isEmpty(publicAddress)) {
+                                    String inviteLink = OnboardingManager.generateInviteLink(URLEncoder.encode(publicAddress, "UTF-8"));
+                                    Intent intent = new Intent(GroupDisplayActivity.this, QrDisplayActivity.class);
+                                    intent.putExtra(Intent.EXTRA_TEXT, inviteLink);
+                                    startActivity(intent);
+                                }
 
                             } catch (Exception e) {
                                 Log.e(LOG_TAG, "couldn't generate QR code", e);
@@ -272,12 +278,18 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
                                 try {
                                     if (mSession != null) {
                                         mSession.setPublic(true);
+
+                                        String publicAddress = mSession.getPublicAddress();
+
+                                        if (!TextUtils.isEmpty(publicAddress)) {
+                                            String inviteLink = OnboardingManager.generateInviteLink(URLEncoder.encode(publicAddress,"UTF-8"));
+                                            new QrShareAsyncTask(GroupDisplayActivity.this).execute(inviteLink, mName);
+                                        }
+
                                     }
                                 } catch (Exception ignored) {
                                 }
-                                String publicAddress = URLEncoder.encode(mSession.getPublicAddress(), "UTF-8");
-                                String inviteLink = OnboardingManager.generateInviteLink(GroupDisplayActivity.this, publicAddress, "", mName);
-                                new QrShareAsyncTask(GroupDisplayActivity.this).execute(inviteLink, mName);
+
                             } catch (Exception e) {
                                 Log.e(LOG_TAG, "couldn't generate QR code", e);
                             }
@@ -384,62 +396,63 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
                         int idxMember = position - 1;
                         final GroupMemberDisplay member = mMembers.get(idxMember);
 
-                        String nickname = member.nickname;
-                        if (TextUtils.isEmpty(nickname)) {
-                            nickname = member.username.split("@")[0].split("\\.")[0];
-                        } else {
-                            nickname = nickname.split("@")[0].split("\\.")[0];
-                        }
-
-                        if (mYou.username.contentEquals(member.username)) {
-                            nickname += " " + getString(R.string.group_you);
-                        }
-
-
-                        h.line2.setText(member.username);
-                        if (member.affiliation != null && (member.affiliation.contentEquals("owner") || member.affiliation.contentEquals("admin"))) {
-
-                            h.avatarCrown.setImageResource(R.drawable.ic_crown);
-                            h.avatarCrown.setVisibility(View.VISIBLE);
-                        }
-                        else if (member.affiliation != null && (member.affiliation.contentEquals("invited"))) {
-                            h.avatarCrown.setImageResource(R.drawable.ic_message_wait_grey);
-                            h.avatarCrown.setVisibility(View.VISIBLE);
-
-
-                        } else {
-                            h.avatarCrown.setVisibility(View.GONE);
-                        }
-
-                        h.line1.setText(nickname);
-
-                        boolean hasRoleNone = TextUtils.isEmpty(member.role) || "none".equalsIgnoreCase(member.role);
-                        h.line1.setTextColor(hasRoleNone ? Color.GRAY : colorTextPrimary);
-
-
-                        /**
-                         if (!member.online)
-                         {
-                         h.line1.setEnabled(false);
-                         h.line2.setEnabled(false);
-                         h.avatar.setBackgroundColor(getResources().getColor(R.color.holo_grey_light));
-                         }**/
-                        if (member.avatar == null) {
-                            try {
-                                member.avatar = DatabaseUtils.getAvatarFromAddress(member.username, SMALL_AVATAR_WIDTH, SMALL_AVATAR_HEIGHT);
-                            } catch (DecoderException e) {
-                                e.printStackTrace();
+                        if (member != null) {
+                            String nickname = member.nickname;
+                            if (TextUtils.isEmpty(nickname)) {
+                                nickname = member.username.split("@")[0].split("\\.")[0];
+                            } else {
+                                nickname = nickname.split("@")[0].split("\\.")[0];
                             }
-                        }
 
-                        if (member.avatar == null) {
-                            padding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics());
-                            member.avatar = new LetterAvatar(holder.itemView.getContext(), nickname, padding);
-                        }
+                            if (mYou.username.contentEquals(member.username)) {
+                                nickname += " " + getString(R.string.group_you);
+                            }
 
-                        h.avatar.setImageDrawable(member.avatar);
-                        h.avatar.setVisibility(View.VISIBLE);
-                        h.itemView.setOnClickListener(v -> showMemberInfo(member));
+
+                            h.line2.setText(member.username);
+                            if (member.affiliation != null && (member.affiliation.contentEquals("owner") || member.affiliation.contentEquals("admin"))) {
+
+                                h.avatarCrown.setImageResource(R.drawable.ic_crown);
+                                h.avatarCrown.setVisibility(View.VISIBLE);
+                            } else if (member.affiliation != null && (member.affiliation.contentEquals("invited"))) {
+                                h.avatarCrown.setImageResource(R.drawable.ic_message_wait_grey);
+                                h.avatarCrown.setVisibility(View.VISIBLE);
+
+
+                            } else {
+                                h.avatarCrown.setVisibility(View.GONE);
+                            }
+
+                            h.line1.setText(nickname);
+
+                            boolean hasRoleNone = TextUtils.isEmpty(member.role) || "none".equalsIgnoreCase(member.role);
+                            h.line1.setTextColor(hasRoleNone ? Color.GRAY : colorTextPrimary);
+
+
+                            /**
+                             if (!member.online)
+                             {
+                             h.line1.setEnabled(false);
+                             h.line2.setEnabled(false);
+                             h.avatar.setBackgroundColor(getResources().getColor(R.color.holo_grey_light));
+                             }**/
+                            if (member.avatar == null) {
+                                try {
+                                    member.avatar = DatabaseUtils.getAvatarFromAddress(member.username, SMALL_AVATAR_WIDTH, SMALL_AVATAR_HEIGHT);
+                                } catch (DecoderException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+
+                            if (member.avatar == null) {
+                                padding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics());
+                                member.avatar = new LetterAvatar(holder.itemView.getContext(), nickname, padding);
+                            }
+
+                            h.avatar.setImageDrawable(member.avatar);
+                            h.avatar.setVisibility(View.VISIBLE);
+                            h.itemView.setOnClickListener(v -> showMemberInfo(member));
+                        }
                     }
                 }
             }
@@ -607,73 +620,47 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
 
     private synchronized void updateMembers() {
 
-            new Thread ()
-            {
-                public void run ()
-                {
 
-                    final HashMap<String, GroupMemberDisplay> members = new HashMap<>();
+        mMembers.clear();
 
-                    String[] projection = {Imps.GroupMembers.USERNAME, Imps.GroupMembers.NICKNAME, Imps.GroupMembers.ROLE, Imps.GroupMembers.AFFILIATION};
-                    Uri memberUri = ContentUris.withAppendedId(Imps.GroupMembers.CONTENT_URI, mLastChatId);
-                    ContentResolver cr = getContentResolver();
+        String[] projection = {Imps.GroupMembers.USERNAME, Imps.GroupMembers.NICKNAME, Imps.GroupMembers.ROLE, Imps.GroupMembers.AFFILIATION};
+        Uri memberUri = ContentUris.withAppendedId(Imps.GroupMembers.CONTENT_URI, mLastChatId);
+        ContentResolver cr = getContentResolver();
 
-                    StringBuilder buf = new StringBuilder();
-                    buf.append(Imps.Messages.NICKNAME).append(" IS NOT NULL ");
+        StringBuilder buf = new StringBuilder();
+        buf.append(Imps.Messages.NICKNAME).append(" IS NOT NULL ");
 
-                    Cursor c = cr.query(memberUri, projection, buf.toString(), null, Imps.GroupMembers.ROLE+","+Imps.GroupMembers.AFFILIATION);
-                    if (c != null) {
-                        int colUsername = c.getColumnIndex(Imps.GroupMembers.USERNAME);
-                        int colNickname = c.getColumnIndex(Imps.GroupMembers.NICKNAME);
-                        int colRole = c.getColumnIndex(Imps.GroupMembers.ROLE);
-                        int colAffiliation = c.getColumnIndex(Imps.GroupMembers.AFFILIATION);
+        Cursor c = cr.query(memberUri, projection, buf.toString(), null, Imps.GroupMembers.ROLE+","+Imps.GroupMembers.AFFILIATION);
+        if (c != null) {
+            int colUsername = c.getColumnIndex(Imps.GroupMembers.USERNAME);
+            int colNickname = c.getColumnIndex(Imps.GroupMembers.NICKNAME);
+            int colRole = c.getColumnIndex(Imps.GroupMembers.ROLE);
+            int colAffiliation = c.getColumnIndex(Imps.GroupMembers.AFFILIATION);
 
-                        while (c.moveToNext()) {
-                            GroupMemberDisplay member = new GroupMemberDisplay();
-                            member.username = c.getString(colUsername);
-                            member.nickname = c.getString(colNickname);
-                            member.role = c.getString(colRole);
-                            member.affiliation = c.getString(colAffiliation);
-                            if (mLocalAddress.contentEquals(member.username)) {
-                                mYou = member;
-                            }
-
-                            members.put(member.username, member);
-                        }
-                        c.close();
-                    }
-
-                    mMembers = new ArrayList<>(members.values());
-
-                    synchronized (mMembers) {
-                        // Sort members by name, but keep owners at the top
-                        Collections.sort(mMembers, new Comparator<GroupMemberDisplay>() {
-                            @Override
-                            public int compare(GroupMemberDisplay member1, GroupMemberDisplay member2) {
-                                if (member1.affiliation == null || member2.affiliation == null)
-                                    return 1;
-                                boolean member1isImportant = (member1.affiliation.contentEquals("owner") || member1.affiliation.contentEquals("admin"));
-                                boolean member2isImportant = (member2.affiliation.contentEquals("owner") || member2.affiliation.contentEquals("admin"));
-                                if (member1isImportant != member2isImportant) {
-                                    if (member1isImportant) {
-                                        return -1;
-                                    } else {
-                                        return 1;
-                                    }
-                                }
-                                return member1.nickname.compareTo(member2.nickname);
-                            }
-                        });
-                    }
-                    
-                    runOnUiThread(() -> {
-                        if (mRecyclerView != null && mRecyclerView.getAdapter() != null)
-                            mRecyclerView.getAdapter().notifyDataSetChanged();
-                    });
-
-
+            while (c.moveToNext()) {
+                GroupMemberDisplay member = new GroupMemberDisplay();
+                member.username = c.getString(colUsername);
+                member.nickname = c.getString(colNickname);
+                member.role = c.getString(colRole);
+                member.affiliation = c.getString(colAffiliation);
+                if (mLocalAddress.contentEquals(member.username)) {
+                    mYou = member;
                 }
-            }.start();
+
+                boolean isImportant = (member.affiliation.contentEquals("owner") || member.affiliation.contentEquals("admin"));
+
+                if (isImportant)
+                    mMembers.add(0,member);
+                else
+                    mMembers.add(member);
+            }
+            c.close();
+        }
+
+
+        if (mRecyclerView != null && mRecyclerView.getAdapter() != null)
+            mRecyclerView.getAdapter().notifyDataSetChanged();
+
 
 
     }
@@ -821,6 +808,7 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent resultIntent) {
+        super.onActivityResult(requestCode, resultCode, resultIntent);
 
         if (resultCode == RESULT_OK) {
 
@@ -837,7 +825,7 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
 
                 inviteContacts(invitees);
 
-                mHandler.postDelayed(() -> updateSession(),3000);
+                mHandler.postDelayed(() -> updateSession(), 3000);
             }
         }
     }
@@ -909,7 +897,6 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
             public void onClick(DialogInterface dialog, int whichButton) {
                 String newSubject = input.getText().toString();
                 changeGroupSubject(newSubject);
-
             }
         });
 
@@ -925,7 +912,7 @@ public class GroupDisplayActivity extends BaseActivity implements IChatSessionLi
     {
         try {
             IChatSession session = mConn.getChatSessionManager().getChatSession(mAddress);
-            session.setGroupChatSubject(subject);
+            session.setGroupChatSubject(subject, true);
 
             // Update the UI
             mName = subject;
