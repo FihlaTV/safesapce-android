@@ -11,6 +11,4 @@ local.properties
 .externalNativeBuild
 .idea/*
 gradle.properties
-releases/*
-app/release/*
 app/primary/*

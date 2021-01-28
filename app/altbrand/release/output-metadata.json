@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "com.mvp.uphi",
+  "variantName": "processAltbrandReleaseResources",
+  "elements": [
+    {
+      "type": "UNIVERSAL",
+      "filters": [],
+      "versionCode": 219002200,
+      "versionName": "2.2.1-RC-2",
+      "outputFile": "Uphi-Safe-2.2.1-RC-2-altbrand-universal-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86"
+        }
+      ],
+      "versionCode": 219002204,
+      "versionName": "2.2.1-RC-2",
+      "outputFile": "Uphi-Safe-2.2.1-RC-2-altbrand-x86-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "x86_64"
+        }
+      ],
+      "versionCode": 219002205,
+      "versionName": "2.2.1-RC-2",
+      "outputFile": "Uphi-Safe-2.2.1-RC-2-altbrand-x86_64-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "armeabi-v7a"
+        }
+      ],
+      "versionCode": 219002201,
+      "versionName": "2.2.1-RC-2",
+      "outputFile": "Uphi-Safe-2.2.1-RC-2-altbrand-armeabi-v7a-release.apk"
+    },
+    {
+      "type": "ONE_OF_MANY",
+      "filters": [
+        {
+          "filterType": "ABI",
+          "value": "arm64-v8a"
+        }
+      ],
+      "versionCode": 219002202,
+      "versionName": "2.2.1-RC-2",
+      "outputFile": "Uphi-Safe-2.2.1-RC-2-altbrand-arm64-v8a-release.apk"
+    }
+  ]
+}
