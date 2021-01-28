@@ -1,15 +1,15 @@
 {
   "servers": [
     {
-      "name": "Zom Nang",
-      "description": "Zom2 Nang Matrix Server",
-      "website": "https://zomas.im",
-      "twitter": "https://twitter.com/zomapp",
-      "privacy_policy": "https://zom.im/privacy",
+      "name": "Uphi SafeSpace",
+      "description": "SafeSpace Matrix Server",
+      "website": "https://uphi.co.za/#safespace",
+      "twitter": "https://twitter.com/uphiapp",
+      "privacy_policy": "https://uphi.co.za/privacy",
       "logo": "image/zom.png",
-      "country_code": "US",
-      "domain": "nanga.zomas.im",
-      "server": "zom-production-nang-loadbalancer-1207751385.us-east-2.elb.amazonaws.com",
+      "country_code": "ZA",
+      "domain": "user.uphi.co.za",
+      "server": "user.uphi.co.za",
       "ip": "",
       "port": 443,
       "requires_otr": true,

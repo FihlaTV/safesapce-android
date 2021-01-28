@@ -83,10 +83,10 @@ android {
 
         altbrand {
             dimension = "release"
-            applicationId "im.zom.messenger"
+            applicationId "com.mvp.uphi"
             versionCode 219002200
-            versionName "2.1.9-RC-1"
-            archivesBaseName = "Zom-$versionName"
+            versionName "2.2.1-RC-2"
+            archivesBaseName = "Uphi-Safe-$versionName"
         }
 
 
